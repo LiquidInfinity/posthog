@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Form, Group } from 'kea-forms'
-import { Button, Slider, Card, Row, Col, Radio, InputNumber, Popconfirm, Select } from 'antd'
+import { Button, Slider, Row, Col, Radio, InputNumber, Popconfirm, Select } from 'antd'
 import { useActions, useValues } from 'kea'
 import { capitalizeFirstLetter } from 'lib/utils'
 import { PropertyFilters } from 'lib/components/PropertyFilters/PropertyFilters'
@@ -29,6 +29,7 @@ import { EventBufferNotice } from 'scenes/events/EventBufferNotice'
 import { AlertMessage } from 'lib/components/AlertMessage'
 import { urls } from 'scenes/urls'
 import { SpinnerOverlay } from 'lib/components/Spinner/Spinner'
+import { LemonLabel } from 'lib/components/LemonLabel/LemonLabel'
 
 export const scene: SceneExport = {
     component: FeatureFlag,
@@ -455,15 +456,15 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                             </div>
                         )}
                     </div>
-                    <Row gutter={16}>
+                    <div>
                         {featureFlag.filters.groups.map((group, index) => (
-                            <Col span={24} md={24} key={`${index}-${featureFlag.filters.groups.length}`}>
+                            <div key={`${index}-${featureFlag.filters.groups.length}`}>
                                 {index > 0 && (
-                                    <div style={{ display: 'flex', marginLeft: 16 }}>
-                                        <div className="stateful-badge or-light-grey mb-4">OR</div>
+                                    <div className="my-4">
+                                        <div className="stateful-badge or-light-grey">OR</div>
                                     </div>
                                 )}
-                                <Card style={{ marginBottom: 16 }}>
+                                <div className="border rounded p-6">
                                     <div className="feature-flag-form-row" style={{ height: 24 }}>
                                         <div>
                                             <span className="simple-tag tag-light-blue" style={{ marginRight: 8 }}>
@@ -479,7 +480,7 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                                                 </>
                                             )}
                                         </div>
-                                        <Row align="middle">
+                                        <div className="flex items-center">
                                             <Tooltip title="Duplicate this condition set" placement="bottomLeft">
                                                 <LemonButton
                                                     icon={<IconCopy />}
@@ -496,7 +497,7 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                                                     />
                                                 </Tooltip>
                                             )}
-                                        </Row>
+                                        </div>
                                     </div>
 
                                     <LemonDivider className="my-4" />
@@ -506,9 +507,12 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                                                 featureFlag.filters.groups.length
                                             }-${featureFlag.filters.aggregation_group_type_index ?? ''}`}
                                             propertyFilters={group?.properties}
-                                            onChange={(properties) => updateConditionSet(index, undefined, properties)}
+                                            onChange={(properties) =>
+                                                updateConditionSet(index, { newProperties: properties })
+                                            }
                                             taxonomicGroupTypes={taxonomicGroupTypes}
                                             showConditionBadge
+                                            // disablePopover
                                         />
                                     </div>
 
@@ -520,7 +524,7 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                                             <InputNumber
                                                 style={{ width: 100, marginLeft: 8, marginRight: 8 }}
                                                 onChange={(value): void => {
-                                                    updateConditionSet(index, value as number)
+                                                    updateConditionSet(index, { newRolloutPercentage: value as number })
                                                 }}
                                                 value={
                                                     group.rollout_percentage != null ? group.rollout_percentage : 100
@@ -532,15 +536,26 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                                             of <b>{aggregationTargetName}</b> in this set
                                         </div>
                                     </div>
-                                </Card>
-                            </Col>
+
+                                    <div className="flex items-center gap-2">
+                                        <LemonLabel htmlFor={`description-${index}`}>Note</LemonLabel>
+                                        <LemonInput
+                                            id={`description-${index}`}
+                                            className="mt-2"
+                                            placeholder="Add a note for this group (Optional)"
+                                            value={group?.description || ''}
+                                            onChange={(e) => updateConditionSet(index, { description: e })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         ))}
-                    </Row>
-                    <Card size="small" style={{ marginBottom: 16 }}>
+                    </div>
+                    <div className="border rounded p-3 mt-2">
                         <LemonButton onClick={addConditionSet} fullWidth>
                             Add condition set
                         </LemonButton>
-                    </Card>
+                    </div>
                     <div className="text-right">
                         <LemonButton
                             htmlType="submit"

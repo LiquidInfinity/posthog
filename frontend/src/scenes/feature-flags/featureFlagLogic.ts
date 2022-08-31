@@ -70,12 +70,20 @@ export const featureFlagLogic = kea<featureFlagLogicType>([
         duplicateConditionSet: (index: number) => ({ index }),
         updateConditionSet: (
             index: number,
-            newRolloutPercentage?: number | null,
-            newProperties?: AnyPropertyFilter[]
+            {
+                newRolloutPercentage,
+                newProperties,
+                description,
+            }: {
+                newRolloutPercentage?: number | null
+                newProperties?: AnyPropertyFilter[]
+                description?: string
+            }
         ) => ({
             index,
             newRolloutPercentage,
             newProperties,
+            description,
         }),
         deleteFeatureFlag: (featureFlag: Partial<FeatureFlagType>) => ({ featureFlag }),
         setMultivariateEnabled: (enabled: boolean) => ({ enabled }),
@@ -138,7 +146,7 @@ export const featureFlagLogic = kea<featureFlagLogicType>([
                     const groups = [...state?.filters.groups, { properties: [], rollout_percentage: null }]
                     return { ...state, filters: { ...state.filters, groups } }
                 },
-                updateConditionSet: (state, { index, newRolloutPercentage, newProperties }) => {
+                updateConditionSet: (state, { index, newRolloutPercentage, newProperties, description }) => {
                     if (!state) {
                         return state
                     }
@@ -150,6 +158,10 @@ export const featureFlagLogic = kea<featureFlagLogicType>([
 
                     if (newProperties !== undefined) {
                         groups[index] = { ...groups[index], properties: newProperties }
+                    }
+
+                    if (description !== undefined) {
+                        groups[index] = { ...groups[index], description }
                     }
 
                     return { ...state, filters: { ...state.filters, groups } }
