@@ -467,9 +467,7 @@ export function FeatureFlag({ id }: { id?: string } = {}): JSX.Element {
                                 <div className="border rounded p-6">
                                     <div className="feature-flag-form-row" style={{ height: 24 }}>
                                         <div>
-                                            <span className="simple-tag tag-light-blue" style={{ marginRight: 8 }}>
-                                                Set {index + 1}
-                                            </span>
+                                            <span className="simple-tag tag-light-blue mr-2">Set {index + 1}</span>
                                             {group.properties?.length ? (
                                                 <>
                                                     Matching <b>{aggregationTargetName}</b> with filters
