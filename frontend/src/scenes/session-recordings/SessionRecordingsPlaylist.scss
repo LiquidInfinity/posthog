@@ -1,17 +1,16 @@
+@import '../../styles/mixins';
+
 .SessionRecordingPlaylist {
-    display: flex;
-    flex-direction: row;
+    @include screen($md) {
+        display: flex;
+        flex-direction: row;
+        gap: 0.5rem;
+    }
 
     .SessionRecordingPlaylist__left-column {
-        width: 300px;
-        flex-shrink: 0;
-
-        .SessionRecordingPlaylist__pagination-control {
-            margin-top: 1rem;
-            display: flex;
-            width: 100%;
-            justify-content: flex-end;
-            align-items: center;
+        @include screen($md) {
+            width: 300px;
+            flex-shrink: 0;
         }
     }
     .SessionRecordingPlaylist__right-column {
