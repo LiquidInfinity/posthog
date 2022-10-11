@@ -42,7 +42,7 @@ describe('multi-process plugin server', () => {
         await resetTestDatabase(indexJs)
         await resetTestDatabaseClickhouse()
         ingestionServer = await startPluginsServer({ PLUGIN_SERVER_MODE: 'ingestion' }, makePiscina)
-        asyncServer = await startPluginsServer({ PLUGIN_SERVER_MODE: 'async' }, makePiscina)
+        asyncServer = await startPluginsServer({ PLUGIN_SERVER_MODE: 'async-no-scheduler' }, makePiscina)
         scheduler = await startPluginsServer({ PLUGIN_SERVER_MODE: 'scheduler' }, makePiscina)
         posthog = createPosthog(ingestionServer.hub, pluginConfig39)
     })
