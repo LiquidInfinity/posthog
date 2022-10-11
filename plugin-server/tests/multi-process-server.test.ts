@@ -30,6 +30,7 @@ export function onEvent (event, { global }) {
 describe('multi-process plugin server', () => {
     let ingestionServer: ServerInstance
     let asyncServer: ServerInstance
+    let scheduler: ServerInstance
     let posthog: DummyPostHog
 
     beforeAll(async () => {
@@ -42,6 +43,7 @@ describe('multi-process plugin server', () => {
         await resetTestDatabaseClickhouse()
         ingestionServer = await startPluginsServer({ PLUGIN_SERVER_MODE: 'ingestion' }, makePiscina)
         asyncServer = await startPluginsServer({ PLUGIN_SERVER_MODE: 'async' }, makePiscina)
+        scheduler = await startPluginsServer({ PLUGIN_SERVER_MODE: 'scheduler' }, makePiscina)
         posthog = createPosthog(ingestionServer.hub, pluginConfig39)
     })
 
@@ -70,5 +72,13 @@ describe('multi-process plugin server', () => {
         expect(events[0].properties.processed).toEqual('hell yes')
 
         expect(testConsole.read()).toEqual([['processEvent'], ['onEvent', 'custom event', 'hell yes']])
+
+        // Check that plugin schedules is only defined for the scheduler
+        // NOTE: wasn't sure how best to test this, so just checking that
+        // pluginSchedule has been set. This will need to be updated when we
+        // switch out how these are run.
+        expect(scheduler.hub.pluginSchedule).toBeDefined()
+        expect(ingestionServer.hub.pluginSchedule).toBeNull()
+        expect(asyncServer.hub.pluginSchedule).toBeNull()
     })
 })
