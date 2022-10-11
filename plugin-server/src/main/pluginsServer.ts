@@ -23,7 +23,7 @@ import { status } from '../utils/status'
 import { delay, getPiscinaStats, stalenessCheck } from '../utils/utils'
 import { startAnonymousEventBufferConsumer } from './ingestion-queues/anonymous-event-buffer-consumer'
 import { KafkaQueue } from './ingestion-queues/kafka-queue'
-import { startQueues } from './ingestion-queues/queue'
+import { startKafkaConsumer } from './ingestion-queues/queue'
 import { GraphileQueue } from './job-queues/concurrent/graphile-queue'
 import { startJobQueueConsumer } from './job-queues/job-queue-consumer'
 import { jobQueueMap } from './job-queues/job-queues'
@@ -80,6 +80,8 @@ export async function startPluginsServer(
     // 5. publishes the resulting event to a Kafka topic on which ClickHouse is
     //    listening.
     //
+    // The queue also handles async handlers, reading from
+    // clickhouse_events_json topic.
     let queue: KafkaQueue | undefined | null
 
     // Kafka consumer. Handles events that we couldn't find an existing person
@@ -196,12 +198,33 @@ export async function startPluginsServer(
 
         piscina = makePiscina(serverConfig)
 
+        // Based on the mode the plugin server was started, we start a number of
+        // different services. Mostly this is reasonably obvious from the name.
+        // There is however the `queue` which is a little more complicated.
+        // Depending on the capabilities we start with, it will either consume
+        // from:
+        //
+        // 1. plugin_events_ingestion
+        // 2. clickhouse_events_json
+        // 3. clickhouse_events_json and plugin_events_ingestion
+        //
+        if (hub.capabilities.http) {
+            // start http server used for the healthcheck
+            // TODO: include bufferConsumer in healthcheck
+            httpServer = createHttpServer(hub!, serverInstance as ServerInstance)
+        }
+
         if (hub.capabilities.pluginScheduledTasks) {
             pluginScheduleControl = await startPluginSchedules(hub, piscina)
         }
+
         if (hub.capabilities.ingestion || hub.capabilities.processPluginJobs) {
+            // NOTE: this is the Graohile Worker. We start if either ingestion
+            // or processPluginJobs is enabled. Further refinement is handled
+            // internal to the JobQueueManager.
             jobQueueConsumer = await startJobQueueConsumer(hub, piscina)
         }
+
         if (hub.capabilities.ingestion) {
             bufferConsumer = await startAnonymousEventBufferConsumer({
                 kafka: hub.kafka,
@@ -211,10 +234,15 @@ export async function startPluginsServer(
             })
         }
 
-        const queues = await startQueues(hub, piscina)
+        if (hub.capabilities.ingestion || hub.capabilities.processPluginJobs) {
+            // NOTE: we start this either if ingestion or processPluginJobs is
+            // enabled. Further configuration happens internal to the
+            // `KafkaQueue` class, either consuming from
+            // `plugin_events_ingestion` and/or from `clickhouse_events_json`.
+            queue = await startKafkaConsumer(hub, piscina)
+        }
 
         // `queue` refers to the ingestion queue.
-        queue = queues.ingestion
         piscina.on('drain', () => {
             void jobQueueConsumer?.resume()
         })
