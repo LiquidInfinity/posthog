@@ -1,9 +1,13 @@
 import Piscina from '@posthog/piscina'
 import { PluginEvent } from '@posthog/plugin-scaffold'
 
-import { Hub, PostIngestionEvent } from '../../types'
+import { Hub, PostIngestionEvent, WorkerMethods } from '../../types'
 import { status } from '../../utils/status'
 import { KafkaQueue } from './kafka-queue'
+
+interface Queues {
+    ingestion: KafkaQueue | null
+}
 
 export function pauseQueueIfWorkerFull(
     pause: undefined | (() => void | Promise<void>),
@@ -15,10 +19,12 @@ export function pauseQueueIfWorkerFull(
     }
 }
 
-export async function startKafkaConsumer(server: Hub, piscina: Piscina): Promise<KafkaQueue> {
-    status.info('🔄', 'Starting ingestion/async handler consumer...')
-
-    const workerMethods = {
+export async function startQueues(
+    server: Hub,
+    piscina: Piscina,
+    workerMethods: Partial<WorkerMethods> = {}
+): Promise<Queues> {
+    const mergedWorkerMethods = {
         runAsyncHandlersEventPipeline: (event: PostIngestionEvent) => {
             server.lastActivity = new Date().valueOf()
             server.lastActivityType = 'runAsyncHandlersEventPipeline'
@@ -29,14 +35,27 @@ export async function startKafkaConsumer(server: Hub, piscina: Piscina): Promise
             server.lastActivityType = 'runEventPipeline'
             return piscina.run({ task: 'runEventPipeline', args: { event } })
         },
+        ...workerMethods,
     }
 
     try {
-        const queue = new KafkaQueue(server, workerMethods)
-        await queue.start()
-        return queue
+        const queues: Queues = {
+            ingestion: await startQueueKafka(server, mergedWorkerMethods),
+        }
+        return queues
     } catch (error) {
         status.error('💥', 'Failed to start event queue:\n', error)
         throw error
     }
+}
+
+async function startQueueKafka(server: Hub, workerMethods: WorkerMethods): Promise<KafkaQueue | null> {
+    if (!server.capabilities.ingestion && !server.capabilities.processAsyncHandlers) {
+        return null
+    }
+
+    const kafkaQueue = new KafkaQueue(server, workerMethods)
+    await kafkaQueue.start()
+
+    return kafkaQueue
 }

@@ -23,7 +23,7 @@ import { status } from '../utils/status'
 import { delay, getPiscinaStats, stalenessCheck } from '../utils/utils'
 import { startAnonymousEventBufferConsumer } from './ingestion-queues/anonymous-event-buffer-consumer'
 import { KafkaQueue } from './ingestion-queues/kafka-queue'
-import { startKafkaConsumer } from './ingestion-queues/queue'
+import { startQueues } from './ingestion-queues/queue'
 import { GraphileQueue } from './job-queues/concurrent/graphile-queue'
 import { startJobQueueConsumer } from './job-queues/job-queue-consumer'
 import { jobQueueMap } from './job-queues/job-queues'
@@ -239,7 +239,7 @@ export async function startPluginsServer(
             // enabled. Further configuration happens internal to the
             // `KafkaQueue` class, either consuming from
             // `plugin_events_ingestion` and/or from `clickhouse_events_json`.
-            queue = await startKafkaConsumer(hub, piscina)
+            queue = (await startQueues(hub, piscina)).ingestion
         }
 
         // `queue` refers to the ingestion queue.
