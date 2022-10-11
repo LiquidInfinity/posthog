@@ -58,17 +58,54 @@ export async function startPluginsServer(
     status.updatePrompt(serverConfig.PLUGIN_SERVER_MODE)
     status.info('ℹ️', `${serverConfig.WORKER_CONCURRENCY} workers, ${serverConfig.TASKS_PER_WORKER} tasks per worker`)
 
-    let pubSub: PubSub | undefined
+    // Structure containing initialized clients for Postgres, Kafka, Redis, etc.
     let hub: Hub | undefined
+
+    // Used to trigger reloads of plugin code/config
+    let pubSub: PubSub | undefined
+
+    // A Node Worker Thread pool
     let piscina: Piscina | undefined
-    let queue: KafkaQueue | undefined | null // ingestion queue
-    let jobQueueConsumer: JobQueueConsumerControl | undefined
+
+    // Ingestion Kafka consumer. Handles both analytics events and screen
+    // recording events. The functionality roughly looks like:
+    //
+    // 1. events come in via the /e/ and friends endpoints and published to the
+    //    plugin_events_ingestion Kafka topic.
+    // 2. this queue consumes from the plugin_events_ingestion topic.
+    // 3. update or creates people in the Persons table in pg with the new event
+    //    data.
+    // 4. passes he event through `processEvent` on any plugins that the team
+    //    has enabled.
+    // 5. publishes the resulting event to a Kafka topic on which ClickHouse is
+    //    listening.
+    //
+    let queue: KafkaQueue | undefined | null
+
+    // Kafka consumer. Handles events that we couldn't find an existing person
+    // to associate. The buffer handles delaying the ingestion of these events
+    // (default 60 seconds) to allow for the person to be created in the
+    // meantime.
     let bufferConsumer: Consumer | undefined
-    let closeHub: () => Promise<void> | undefined
+
+    // A wrapper around Graphile Worker. This is used to run jobs that are
+    // scheduled by plugins. The functionality roughly looks like:
+    //
+    // 1. running bufferJob jobs, which are scheduled from `bufferConsumer`
+    // 2. running pluginJob jobs. These are jobs that are specified in the
+    //    `jobs` attribute of plugin definitions.
+    //
+    let jobQueueConsumer: JobQueueConsumerControl | undefined
+
+    // A wrapper around node-schedule. It is a cron like service that runs
+    // plugin defined runEveryMinute, runEveryHour, runEveryDay.
     let pluginScheduleControl: PluginScheduleControl | undefined
-    let mmdbServer: net.Server | undefined
+
+    let httpServer: Server | undefined // healthcheck server
+    let mmdbServer: net.Server | undefined // geoip server
+
+    let closeHub: () => Promise<void> | undefined
     let lastActivityCheck: NodeJS.Timeout | undefined
-    let httpServer: Server | undefined
     let stopEventLoopMetrics: (() => void) | undefined
 
     async function closeJobs(): Promise<void> {
