@@ -487,13 +487,19 @@ export function addHistoricalEventsExportCapabilityV2(
                 await stopExport(params, `exportEvents returned unknown error, stopping export. error=${error}`, 'fail')
                 await processError(hub, pluginConfig, error)
             }
-            await hub.appMetrics.queueMetric({
-                teamId: pluginConfig.team_id,
-                pluginConfigId: pluginConfig.id,
-                jobId: payload.exportId.toString(),
-                category: 'exportEvents',
-                failures: eventCount,
-            })
+            await hub.appMetrics.queueError(
+                {
+                    teamId: pluginConfig.team_id,
+                    pluginConfigId: pluginConfig.id,
+                    jobId: payload.exportId.toString(),
+                    category: 'exportEvents',
+                    failures: eventCount,
+                },
+                {
+                    error: error,
+                    context: { eventCount },
+                }
+            )
         }
     }
 
